@@ -2,6 +2,7 @@ import numpy as np
 import scipy.integrate
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import torch
 
 
 class Pendulum():
@@ -116,6 +117,34 @@ class Pendulum():
         done = False
         while not done:
             (s, r, done) = self.step(policy(s))
+            s_traj.append(s)
+
+        fig = plt.figure(figsize=(5, 4))
+        ax = fig.add_subplot(111, autoscale_on=False, xlim=(-1.2, 1.2), ylim=(-1.2, 1.2))
+        ax.set_aspect('equal')
+        ax.grid()
+        line, = ax.plot([], [], 'o-', lw=2)
+        text = ax.set_title('')
+
+        def animate(i):
+            theta = s_traj[i][0]
+            line.set_data([0, -np.sin(theta)], [0, np.cos(theta)])
+            text.set_text(f'time = {i * self.dt:3.1f}')
+            return line, text
+
+        anim = animation.FuncAnimation(fig, animate, len(s_traj), interval=(1000 * self.dt), blit=True, repeat=False)
+        anim.save(filename, writer=writer, fps=10)
+
+        plt.close()
+
+    def video_NN(self, Q, filename='pendulum.gif', writer='imagemagick'):
+        s = self.reset()
+        s_traj = [s]
+        done = False
+        while not done:
+            s = torch.Tensor.float(torch.from_numpy(s))
+            a = Q(s).argmax().numpy()
+            (s, r, done) = self.step(a)
             s_traj.append(s)
 
         fig = plt.figure(figsize=(5, 4))
