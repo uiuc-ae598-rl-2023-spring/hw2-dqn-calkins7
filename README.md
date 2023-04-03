@@ -1,3 +1,5 @@
+I reviewed emmac4's code.
+
 # HW2 - DQN
 
 ## What to do

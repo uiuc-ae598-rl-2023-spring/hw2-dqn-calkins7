@@ -132,8 +132,8 @@ def plot_state_value_function(V, num_theta, num_theta_dot, env, filename='my_fig
     fig = plt.figure()
     ax = plt.gca()
     p = ax.contourf(Y, X, Z, cmap='jet')
-    ax.set_ylabel('θ')
-    ax.set_xlabel('$\dot{θ}$')
+    ax.set_xlabel('θ')
+    ax.set_ylabel('$\dot{θ}$')
     ax.set_title('State-Value Function')
     fig.colorbar(p, shrink=0.5, aspect=5)
     plt.savefig(filename)
@@ -169,8 +169,8 @@ def plot_policy(env, trained_Q, num_theta, num_theta_dot, filename, avgTag):
     ax = plt.gca()
     # make a countour plot of the Z
     p = ax.contourf(Y, X, Z, cmap='jet')
-    ax.set_ylabel('θ')
-    ax.set_xlabel('$\dot{θ}$')
+    ax.set_xlabel('θ')
+    ax.set_ylabel('$\dot{θ}$')
     ax.set_title('Optimal Policy')
     fig.colorbar(p, shrink=0.5, aspect=5)
     plt.savefig(filename)
@@ -195,8 +195,8 @@ def plot_ablation_study(wrwt, wrnt, nrwt, nrnt,filename):
     mean_data = []
     std_data = []
     for ii, case in enumerate([wrwt, wrnt, nrwt, nrnt]):
-        mean_data.append(np.mean(np.array(case), axis=0))
-        std_data.append(np.std(np.array(case), axis=0))
+        mean_data.append(np.mean(np.array(case[0]), axis=0))
+        std_data.append(np.std(np.array(case[0]), axis=0))
 
     fig = plt.figure()
     ax = plt.gca()
@@ -206,6 +206,8 @@ def plot_ablation_study(wrwt, wrnt, nrwt, nrnt,filename):
     ax.legend()
     ax.set_ylabel('Average Episode Score')
     ax.set_title('Ablation Study')
+    plt.grid()
+    plt.ylim([-2, 10])
     plt.savefig(filename)
     plt.show()
     return

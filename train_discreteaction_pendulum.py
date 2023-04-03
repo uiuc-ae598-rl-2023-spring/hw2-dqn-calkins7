@@ -12,9 +12,9 @@ def main():
 
     runTag = 'hw_final_'
     tag_train_Q = False
-    tag_plot_results = False
-    tag_ablation_study_run = True
-    tag_ablation_study_plot = True
+    tag_plot_results = True
+    tag_ablation_study_run = False
+    tag_ablation_study_plot = False
 
     ##  PARAMETERS
     replay_size = 100000
