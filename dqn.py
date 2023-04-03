@@ -3,7 +3,7 @@ import math
 from collections import namedtuple, deque
 from itertools import count
 import random
-from epsilon_greedy import epsilon_greedy, random_action
+from select_action import epsilon_greedy, random_action
 
 import torch
 import torch.nn as nn
@@ -17,14 +17,11 @@ class ReplayBuffer:
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = deque(maxlen=capacity)
-
     def push(self, *args):
         """Saves a transition."""
         self.memory.append(Transition(*args))
-
     def sample(self, batch_size):
         return random.sample(self.memory, batch_size)
-
     def __len__(self):
         return len(self.memory)
 
@@ -37,32 +34,7 @@ class DQN_NN(nn.Module):
         :param hidden_dim: dimension of hidden layers
         :param num_hidden_layers: number of hidden layers
         """
-        super(DQN_NN, self).__init__()
-        self.layer1 = nn.Linear(num_obs, hidden_dim)  # num_obsx64
-        self.layer2 = nn.Linear(hidden_dim, hidden_dim)  # 64x64
-        self.layer3 = nn.Linear(hidden_dim, num_actions)  # 64xnum_actions
-
-    def forward(self, x):
-        """
-        Performs forward pass. Called with either one element to determine next action, or a batch during optimization.
-        :param x: input
-        :return: output
-        """
-        y1 = nn.Tanh(self.layer1(x))
-        y2 = nn.Tanh(self.layer2(y1))
-        y3 = self.layer3(y2)
-        return y3
-
-class DQN_NN(nn.Module):
-    def __init__(self, num_obs, num_actions, hidden_dim):
-        """
-        Initializes neural network
-        :param num_obs: dimension of input
-        :param output_dim: dimension of output
-        :param hidden_dim: dimension of hidden layers
-        :param num_hidden_layers: number of hidden layers
-        """
-        super(DQN_NN, self).__init__()
+        super().__init__()
         self.layer1 = nn.Linear(num_obs, hidden_dim)  # num_obsx64
         self.layer2 = nn.Linear(hidden_dim, hidden_dim)  # 64x64
         self.layer3 = nn.Linear(hidden_dim, num_actions)  # 64xnum_actions
@@ -129,10 +101,10 @@ def update_Q_weights(Q, replay_buffer, gamma, Q_target, optimizer, loss_fn, batc
 def fill_replay_buffer(env, replay_buffer, replay_size):
     """
     Fills replay buffer with random actions before Q learning
-    :param env:
-    :param replay_buffer:
-    :param replay_size:
-    :return:
+    :param env: environment
+    :param replay_buffer: ('state', 'action', 'next_state', 'reward')
+    :param replay_size: size of replay buffer to fill
+    :return replay_buffer: filled replay buffer
     """
     # Fill up replay buffer
     print('...filling replay buffer...')
@@ -238,22 +210,50 @@ def DQN(replay_size, learning_rate, gamma, eps_start, eps_end, eps_decay, target
                 target_Q.load_state_dict(Q.state_dict())
                 print('...Updating target Q network')
 
-            # Print episode return
-            # if step_counter % 5 == 0:
-            #     print('Episode: %d, Step: %d, Return: %f' % (i_episode, step_counter, episode_return))
             step_counter += 1
 
             # Break if done
             if done:
                 break
 
-        # if i_episode % 100 == 0:
         print('### Episode: %d / %d, Return: %f' % (i_episode, num_episodes, episode_return))
 
         # Update log
         log['return'].append(episode_return)
 
     return log, Q
+
+
+def DQN_avg(numRuns, replay_size, learning_rate, gamma, eps_start, eps_end, eps_decay, target_update_rate, NN_dim, num_episodes,
+        env, batch_size, target_Q_on, init_replay_size):
+    """
+    Averages a given number of runs of DQN performance
+    :param numRuns: number of DQN runs to average
+    :param replay_size: size of experience replay buffer
+    :param learning_rate: learning rate
+    :param gamma: discount factor
+    :param eps: epsilon for epsilon-greedy policy
+    :param target_update_rate: target Q network update rate
+    :param NN_dim: dimension of hidden layers
+    :param NN_num_layers: number of hidden layers
+    :param num_episodes: number of episodes to run
+    :param env: environment
+    :param batch_size: size of minibatch for SGD
+    :param target_Q_on: boolean to turn on target Q network
+    :param init_replay_size: number of random actions to take before Q learning
+    :return log_avg: list of average episode returns
+    :return trainedQs: list of trained Q networks
+    """
+    log_avg = []
+    trainedQs = []
+
+    for i in range(numRuns):
+        log, Q = DQN(replay_size, learning_rate, gamma, eps_start, eps_end, eps_decay, target_update_rate, NN_dim, num_episodes,
+        env, batch_size, target_Q_on, init_replay_size)
+        log_avg.append(log['return'])
+        trainedQs.append(Q)
+
+    return log_avg, trainedQs
 
 
 

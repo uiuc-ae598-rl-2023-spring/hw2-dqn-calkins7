@@ -3,37 +3,52 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import torch
+from helpers import *
 
 
-def plot_learning_curve(log, num_episodes, filename=None):
+def plot_learning_curve(log, num_episodes, filename, avgTag):
     """Plot learning curve (return versus number of episodes)"""
-    # Extract data from log
-    returns = log['return']
-    episodes = range(num_episodes)
+    if not avgTag:
+        # Extract data from log
+        returns = log['return']
+        episodes = range(num_episodes)
 
-    # get rolling average
-    ret = pd.DataFrame(returns)
-    ret_avg = ret.rolling(window=10).mean()
-    ret_std = ret.rolling(window=10).std()
+        # get rolling average
+        ret = pd.DataFrame(returns)
+        ret_avg = ret.rolling(window=10).mean()
+        ret_std = ret.rolling(window=10).std()
+    else:
+        # Extract data from log
+        rets = []
+        ret_std = []
+        returns = []
+        episodes = range(num_episodes)
+
+        for ii, case in enumerate(log):
+            rets.append(np.array(case))
+            returns.append(case)
+        ret_avg = pd.DataFrame(np.mean(rets, axis=0))
+        ret_std = pd.DataFrame(np.std(rets, axis=0))
 
     # Plot learning curve
     plt.figure()
-    plt.scatter(episodes, returns, s=3, alpha=0.5, label='Return')
+    for ret in returns:
+        plt.scatter(episodes, ret, s=5, label='_nolegend_')
     plt.plot(ret_avg.index, ret_avg, 'r-', label='Running average')
     std = 1
-    plt.fill_between(range(num_episodes), (ret_avg - std*ret_std).to_numpy()[:,0], (ret_avg + std*ret_std).to_numpy()[:,0], color='r', alpha=0.2, label=str(std)+' std')
+    plt.fill_between(ret_avg.index, (ret_avg - std*ret_std).to_numpy()[:,0], (ret_avg + std*ret_std).to_numpy()[:,0], color='r', alpha=0.2, label=str(std)+' std')
     plt.xlabel('Episode Number')
     plt.ylabel('Return')
     plt.title('Learning Curve')
     plt.legend()
     plt.grid()
     plt.savefig(filename)
-    plt.show()
+    # plt.show()
 
     return plt
 
 
-def plot_trajectory(env, trained_Q, filename=None):
+def plot_trajectory(env, trained_Q, filename, avgTag):
     # Initialize simulation
     s = env.reset()
 
@@ -51,7 +66,10 @@ def plot_trajectory(env, trained_Q, filename=None):
     done = False
     while not done:
         s = torch.Tensor.float(torch.from_numpy(s))
-        a = trained_Q(s).argmax().numpy()
+        if not avgTag:
+            a = trained_Q(s).argmax().numpy()
+        else:
+            a = avgDQNsa(trained_Q, s)
         (s, r, done) = env.step(a)
         log['t'].append(log['t'][-1] + 1)
         log['s'].append(s)
@@ -93,7 +111,7 @@ def plot_trajectory(env, trained_Q, filename=None):
 
     plt.subplots_adjust(wspace=0.3, left=0.07, right=0.97, top=0.99)
     plt.savefig(filename)
-    plt.show()
+    # plt.show()
     return
 
 
@@ -108,7 +126,7 @@ def plot_state_value_function(V, num_theta, num_theta_dot, env, filename='my_fig
     thetas = np.linspace(-np.pi, np.pi, num_theta)
     thetadots = np.linspace(-env.max_thetadot, env.max_thetadot, num_theta_dot)
 
-    [X, Y] = np.meshgrid(thetas, thetadots)
+    [X, Y] = np.meshgrid(thetadots, thetas)
     Z = V.reshape(X.shape)
 
     fig = plt.figure()
@@ -119,29 +137,32 @@ def plot_state_value_function(V, num_theta, num_theta_dot, env, filename='my_fig
     ax.set_title('State-Value Function')
     fig.colorbar(p, shrink=0.5, aspect=5)
     plt.savefig(filename)
-    plt.show()
-
+    # plt.show()
     return
 
 
-def plot_policy(env, trained_Q, num_theta, num_theta_dot, filename):
+def plot_policy(env, trained_Q, num_theta, num_theta_dot, filename, avgTag):
     """
     Plot policy from trained Q network
     :param trained_Q:
     :param num_theta:
     :param num_theta_dot:
     :param filename:
+    :param avgTag:
     :return:
     """
     thetas = np.linspace(-np.pi, np.pi, num_theta)
     thetadots = np.linspace(-env.max_thetadot, env.max_thetadot, num_theta_dot)
 
-    [X, Y] = np.meshgrid(thetas, thetadots)
+    [X, Y] = np.meshgrid(thetadots, thetas)
     Z = np.zeros(X.shape)
     for ii, t in enumerate(thetas):
         for jj, tdot in enumerate(thetadots):
             s = np.array([t, tdot])
-            a = trained_Q(torch.Tensor.float(torch.from_numpy(s))).argmax().numpy()
+            if not avgTag:
+                a = trained_Q(torch.Tensor.float(torch.from_numpy(s))).mean(0).argmax().numpy()
+            else:
+                a = avgDQNsa(trained_Q, torch.Tensor.float(torch.from_numpy(s)))
             Z[ii, jj] = a
 
     fig = plt.figure()
@@ -153,27 +174,37 @@ def plot_policy(env, trained_Q, num_theta, num_theta_dot, filename):
     ax.set_title('Optimal Policy')
     fig.colorbar(p, shrink=0.5, aspect=5)
     plt.savefig(filename)
-    plt.show()
+    # plt.show()
     return
 
 
-def plot_ablation_study(case1, case2, case3, case4, filename):
+def plot_ablation_study(wrwt, wrnt, nrwt, nrnt,filename):
     """
-    Plot barchart of best episode score from each ablation study
-    :param case1:
-    :param case2:
-    :param case3:
-    :param case4:
-    :param filename:
+    Plot ablation study results
+    :param wrwt: With Replay, With Target
+    :param wrnt: With Replay, No Target
+    :param nrwt: No Replay, With Target
+    :param nrnt: No Replay, No Target
+    :param filename: filename to save plot
     :return:
     """
 
-    xlabels = ["With replay,\nwith target Q", "With replay,\nwithout target Q", "Without replay,\nwith target Q", "Without replay,\nwithout target Q"]
+    legend = ["DQN", "No Target", "No Replay", "No Target, No Replay"]
+
+    # Get mean of the datas passed in
+    mean_data = []
+    std_data = []
+    for ii, case in enumerate([wrwt, wrnt, nrwt, nrnt]):
+        mean_data.append(np.mean(np.array(case), axis=0))
+        std_data.append(np.std(np.array(case), axis=0))
 
     fig = plt.figure()
     ax = plt.gca()
-    ax.bar(xlabels, [case1, case2, case3, case4])
-    ax.set_ylabel('Best Episode Score')
+    for ii in range(len(mean_data)):
+        ax.plot(mean_data[ii], label=legend[ii])
+        ax.fill_between(np.arange(len(mean_data[ii])), mean_data[ii] - std_data[ii], mean_data[ii] + std_data[ii], alpha=0.2)
+    ax.legend()
+    ax.set_ylabel('Average Episode Score')
     ax.set_title('Ablation Study')
     plt.savefig(filename)
     plt.show()

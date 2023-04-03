@@ -3,7 +3,7 @@ import scipy.integrate
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import torch
-
+from helpers import *
 
 class Pendulum():
     def __init__(self, rg=None, num_actions=31):
@@ -137,13 +137,16 @@ class Pendulum():
 
         plt.close()
 
-    def video_NN(self, Q, filename='pendulum.gif', writer='imagemagick'):
+    def video_NN(self, Q, filename='pendulum.gif', writer='imagemagick', avgTag=False):
         s = self.reset()
         s_traj = [s]
         done = False
         while not done:
             s = torch.Tensor.float(torch.from_numpy(s))
-            a = Q(s).argmax().numpy()
+            if not avgTag:
+                a = Q(s).argmax().numpy()
+            else:
+                a = avgDQNsa(Q, s)
             (s, r, done) = self.step(a)
             s_traj.append(s)
 
